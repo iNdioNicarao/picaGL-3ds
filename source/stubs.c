@@ -95,7 +95,9 @@ void glGetTexGenfv(GLenum coord, GLenum pname, GLfloat *params) {}
 void glGetTexGeniv(GLenum coord, GLenum pname, GLint *params) {}
 void glGetTexImage(GLenum target, GLint level, GLenum format, GLenum type, GLvoid *pixels) {}
 void glGetTexLevelParameterfv(GLenum target, GLint level, GLenum pname, GLfloat *params) {}
-void glGetTexLevelParameteriv(GLenum target, GLint level, GLenum pname, GLint *params) {}
+void glGetTexLevelParameteriv(GLenum target, GLint level, GLenum pname, GLint *params) {
+	if (params) *params = 0;
+}
 void glGetTexParameterfv(GLenum target, GLenum pname, GLfloat *params) {}
 void glGetTexParameteriv(GLenum target, GLenum pname, GLint *params) {}
 void glIndexMask(GLuint mask) {}

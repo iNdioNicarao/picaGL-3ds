@@ -32,12 +32,14 @@ void _picaRenderBuffer(uint32_t *colorBuffer, uint32_t *depthBuffer)
 
 void _picaViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height)
 {
-	u32 param[4];
+	float width_div = width == 0 ? 0.0f : 2.0f / (float)width;
+	float height_div = height == 0 ? 0.0f : 2.0f / (float)height;
 
+	u32 param[4];
 	param[0] = f32tof24(width / 2.0f);
-	param[1] = f32tof31(2.0f / width) << 1;
+	param[1] = f32tof31(width_div) << 1;
 	param[2] = f32tof24(height / 2.0f);
-	param[3] = f32tof31(2.0f / height) << 1;
+	param[3] = f32tof31(height_div) << 1;
 
 	GPUCMD_AddIncrementalWrites(GPUREG_VIEWPORT_WIDTH, param, 4);
 	GPUCMD_AddWrite(GPUREG_VIEWPORT_XY, (y << 16) | (x & 0xFFFF));
