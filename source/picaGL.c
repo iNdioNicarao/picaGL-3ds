@@ -79,6 +79,12 @@ void pglSwapBuffers()
 
 	glFlush();
 
+	// Flush the CPU/GPU caches for the LCD framebuffer BEFORE transferring
+	// into it (standard libctru practice). Without this the display may show
+	// stale/partial cache lines -> tearing/strobe even with correct content
+	// and a correct present (proven by the constant cbhash in v90).
+	gfxFlushBuffers();
+
 	uint32_t *output_framebuffer = (uint32_t*)gfxGetFramebuffer(pglState->display, pglState->display_side, NULL, NULL);
 	uint8_t output_format = gfxGetScreenFormat(pglState->display);
 
