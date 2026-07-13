@@ -21,6 +21,19 @@ void pglSelectScreen(unsigned display, unsigned side);
 // GSP thread later faults on its DSP-mapped stack -> ARM11 data abort.
 void pglSetPoweredOff(void);
 
+// Stereo-3D: when enabled, pglSwapBuffers presents a LEFT+RIGHT framebuffer
+// pair (gfxScreenSwapBuffers(GFX_TOP, true)) so the 3DS parallax barrier shows
+// depth. The game must render the scene twice (per-eye) before swapping.
+void pglSetStereo(bool enable);
+
+// Re-bind the render target (colorBuffer + depthBuffer) to the GPU each
+// frame. citro3d requires C3D_FrameDrawOn(target) per frame; picaGL only
+// bound it once at init, so after the first gfxScreenSwapBuffers the GPU's
+// framebuffer registers are stale and every subsequent glClear/glDrawArrays
+// writes nowhere -> the screen freezes on the last pre-swap image. Calling
+// this at the start of each frame restores a live render target.
+void pglBindFramebuffer(void);
+
 #ifdef __cplusplus
 }
 #endif

@@ -166,8 +166,10 @@ typedef struct {
 	void 				*geometryBuffer[2];
 	GLuint 				 geometryBufferOffset, geometryBufferCurrent;
 
-	GLuint				changes;
-	GLuint 				batchedDraws;
+	GLuint		changes;
+	GLuint 		batchedDraws;
+
+	bool		stereo;		// stereo-3D enabled: present LEFT+RIGHT pair
 } picaGLState;
 
 extern picaGLState *pglState;

@@ -59,13 +59,54 @@ void pglExit()
 	//TODO: Clear memory
 }
 
+void pglSetStereo(bool enable)
+{
+	pglState->stereo = enable;
+}
+
+void pglBindFramebuffer(void)
+{
+	_picaRenderBuffer(pglState->colorBuffer, pglState->depthBuffer);
+	_picaAttribBuffersLocation((void*)__ctru_linear_heap);
+}
+
 void pglSwapBuffers()
 {
 	glFlush();
 
 	uint32_t *output_framebuffer = (uint32_t*)gfxGetFramebuffer(pglState->display, pglState->display_side, NULL, NULL);
 	uint8_t output_format = gfxGetScreenFormat(pglState->display);
-	
+
+	if (pglState->stereo && pglState->display == GFX_TOP)
+	{
+		uint32_t *fb = (uint32_t*)gfxGetFramebuffer(GFX_TOP, pglState->display_side, NULL, NULL);
+		GX_DisplayTransfer(
+			(u32*)pglState->colorBuffer, GX_BUFFER_DIM(240, 400),
+			fb, GX_BUFFER_DIM(240, 400),
+			GX_TRANSFER_OUT_FORMAT(output_format));
+		_queueRun(false);
+		{
+			FILE *sf = fopen("sdmc:/3ds/d1/pgl_trace.txt", "a");
+			if (sf) {
+				fprintf(sf, "PGL swap stereo side=%d fb=%p hasStereo=%d fmt=%d\n",
+					(int)pglState->display_side, (void*)fb,
+					(pglState->display_side == GFX_RIGHT) ? 1 : 0, (int)output_format);
+				fclose(sf);
+			}
+		}
+		// Present on EVERY swap so the top screen always updates:
+		//  - LEFT eye  -> present mono (hasStereo=false): top shows the scene.
+		//  - RIGHT eye -> present as stereo pair (hasStereo=true).
+		// This restores a visible top screen even when the game renders only
+		// one eye, and shows a correct pair when both eyes are rendered.
+		gfxScreenSwapBuffers(GFX_TOP, pglState->display_side == GFX_RIGHT);
+		// Sync to VBlank so the present does not tear/strobe (the previous
+		// unsynced swap caused the flickering "darker" image). gfxSwapBuffers
+		// waits for VBlank and swaps both screens correctly.
+		gfxSwapBuffers();
+		return;
+	}
+
 	if(pglState->display == GFX_TOP)
 	{
 		GX_DisplayTransfer(
@@ -80,10 +121,23 @@ void pglSwapBuffers()
 			output_framebuffer, GX_BUFFER_DIM(240, 320),
 			GX_TRANSFER_OUT_FORMAT(output_format));
 	}
-	
+
 	_queueRun(false);
 
+	{
+		FILE *sf = fopen("sdmc:/3ds/d1/pgl_trace.txt", "a");
+		if (sf) {
+			fprintf(sf, "PGL swap display=%d side=%d fb=%p hasStereo=0 fmt=%d\n",
+				(int)pglState->display, (int)pglState->display_side, (void*)output_framebuffer, (int)output_format);
+			fclose(sf);
+		}
+	}
+
 	gfxScreenSwapBuffers(pglState->display, false);
+	// Sync to VBlank so the present does not tear/strobe (the previous
+	// unsynced swap caused the flickering "darker" image). gfxSwapBuffers
+	// waits for VBlank and swaps both screens correctly.
+	gfxSwapBuffers();
 }
 
 void pglSelectScreen(unsigned display, unsigned side)
