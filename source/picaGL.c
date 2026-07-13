@@ -91,25 +91,6 @@ void pglSwapBuffers()
 
 	glFlush();
 
-	// v99c: re-arm the TOP front buffer on the FIRST present after
-	// init/transition. Symptom traced via lum_trace: render + transfer
-	// are healthy (cblum steady, cbhash changes every frame, fblum tracks
-	// cblum), yet the LCD front buffer stays frozen on the stale
-	// briefing/first-frame bank while the sim runs (audio fires). The
-	// per-frame gfxScreenSwapBuffers() requests a flip but the front
-	// bank never advances out of the briefing-menu state. Forcing one
-	// explicit flip here (first pglSwapBuffers only) brings the freshly
-	// rendered game buffer to front. This is the briefing->game
-	// "display frozen on stale frame" one-liner (same class as the
-	// old time_paused quick-load freeze: sim runs, display stuck).
-	{
-		static int first_swap = 1;
-		if (first_swap) {
-			first_swap = 0;
-			gfxSwapBuffers();
-		}
-	}
-
 	// Flush the CPU/GPU caches for the LCD framebuffer BEFORE transferring
 	// into it (standard libctru practice). Without this the display may show
 	// stale/partial cache lines -> tearing/strobe even with correct content
