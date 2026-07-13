@@ -72,12 +72,10 @@ void pglBindFramebuffer(void)
 
 void pglSwapBuffers()
 {
-	// Wait for VBlank BEFORE building/transferring the frame. Without this,
-	// the GX_DisplayTransfer into the LCD framebuffer can cross the VBlank
-	// boundary and the displayed scan shows a half-written (darker, torn)
-	// frame -> the "flashing/strobe" artifact. Waiting up front guarantees
-	// the whole transfer lands inside one refresh window.
-	gspWaitForVBlank();
+	// NOTE: gspWaitForVBlank() was added here in v89 but it hung power-off
+	// (blocks for a VBlank that never arrives during shutdown) and did NOT
+	// fix the strobe. Removed. The single gfxSwapBuffers() below is the
+	// correct, VBlank-synced present.
 
 	glFlush();
 
@@ -131,11 +129,20 @@ void pglSwapBuffers()
 
 	_queueRun(false);
 
+	// DIAGNOSTIC: hash the rendered colorBuffer to determine whether the
+	// STROBE is a RENDER-content artifact (hash differs every frame) or a
+	// PRESENT artifact (hash identical but display still flickers).
 	{
+		volatile uint32_t h = 0x811C9DC5u;
+		const uint32_t *p = (const uint32_t*)pglState->colorBuffer;
+		for (int i = 0; i < (240*400); i++) {
+			h ^= p[i];
+			h *= 0x01000193u;
+		}
 		FILE *sf = fopen("sdmc:/3ds/d1/pgl_trace.txt", "a");
 		if (sf) {
-			fprintf(sf, "PGL swap display=%d side=%d fb=%p hasStereo=0 fmt=%d\n",
-				(int)pglState->display, (int)pglState->display_side, (void*)output_framebuffer, (int)output_format);
+			fprintf(sf, "PGL swap display=%d side=%d fb=%p hasStereo=0 fmt=%d cbhash=%08X\n",
+				(int)pglState->display, (int)pglState->display_side, (void*)output_framebuffer, (int)output_format, (unsigned)h);
 			fclose(sf);
 		}
 	}
