@@ -48,6 +48,16 @@ void pglInit()
 	_stateInitialize();
 	_stateDefault();
 
+	// BUILD MARKER (v99, diagnostic): proves this exact picaGL build
+	// executed on-device. Written once at pglInit. If sdmc:/3ds/d1/
+	// BUILD_v99.txt exists after a run, v99 actually ran (not a stale
+	// installed title). The strobe fix + stereo path live in d1; this
+	// just confirms the instrumented picaGL is the one booted.
+	{
+		FILE *bm = fopen("sdmc:/3ds/d1/BUILD_v99.txt", "w");
+		if (bm) { fprintf(bm, "picaGL BUILD v99 (stereo-enabled, lum_trace active)\n"); fclose(bm); }
+	}
+
 	aptHook(&_hookCookie, _AptEventHook, NULL);
 }
 
