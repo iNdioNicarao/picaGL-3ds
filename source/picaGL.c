@@ -149,12 +149,28 @@ void pglSwapBuffers()
 			h ^= p[i];
 			h *= 0x01000193u;
 		}
+		// DIAGNOSTIC (camera-independent): sample mean luminance of the
+		// rendered colorBuffer AND the transferred LCD buffer. This tells us
+		// whether any brightness pulse originates in the rendered content
+		// (colorBuffer) or in the present/transfer (output_framebuffer), and
+		// is immune to phone-camera capture artifacts.
+		unsigned long cbsum=0, fbsum=0, n=0;
+		const uint32_t *fb = (const uint32_t*)output_framebuffer;
+		for (int i = 0; i < (240*400); i += 64) {
+			uint32_t c = p[i];
+			cbsum += (c&0xFF) + ((c>>8)&0xFF) + ((c>>16)&0xFF);
+			uint32_t o = fb[i];
+			fbsum += (o&0xFF) + ((o>>8)&0xFF) + ((o>>16)&0xFF);
+			n += 3;
+		}
+		int cblum = (int)(cbsum/n);
+		int fblum = (int)(fbsum/n);
 		static int swap_count = 0;
 		swap_count++;
-		FILE *sf = fopen("sdmc:/3ds/d1/pgl_trace.txt", "a");
+		FILE *sf = fopen("sdmc:/3ds/d1/lum_trace.txt", "a");
 		if (sf) {
-			fprintf(sf, "PGL swap #%d display=%d side=%d fb=%p hasStereo=0 fmt=%d cbhash=%08X\n",
-				swap_count, (int)pglState->display, (int)pglState->display_side, (void*)output_framebuffer, (int)output_format, (unsigned)h);
+			fprintf(sf, "swap=%d cblum=%d fblum=%d fb=%p fmt=%d cbhash=%08X\n",
+				swap_count, cblum, fblum, (void*)output_framebuffer, (int)output_format, (unsigned)h);
 			fclose(sf);
 		}
 	}
