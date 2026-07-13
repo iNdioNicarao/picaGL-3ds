@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <3ds/types.h>            // u32 etc. for gspgpu.h
+#include <3ds/services/gspgpu.h> // gspWaitForPPF()
 #include "internal.h"
 
 static aptHookCookie _hookCookie;
@@ -96,6 +98,13 @@ void pglSwapBuffers()
 			fb, GX_BUFFER_DIM(240, 400),
 			GX_TRANSFER_OUT_FORMAT(output_format));
 		_queueRun(false);
+		// Wait for the GX display-transfer to FINISH before flipping.
+		// _queueRun(false) only waits for the GPU command queue (rendering);
+		// the GX_DisplayTransfer goes to the GSP transfer unit, a different
+		// queue. Without this wait, gfxSwapBuffers() flips the framebuffer
+		// while the transfer is still writing -> the top screen shows a mix
+		// of new + stale/partial lines = the strobe/tearing.
+		gspWaitForPPF();
 		{
 			FILE *sf = fopen("sdmc:/3ds/d1/pgl_trace.txt", "a");
 			if (sf) {
@@ -134,8 +143,9 @@ void pglSwapBuffers()
 	}
 
 	_queueRun(false);
-
-	// DIAGNOSTIC: hash the rendered colorBuffer + count swaps.
+	// Wait for the GX display-transfer to FINISH before flipping (see note
+	// above the stereo branch). This is the primary strobe fix for mono.
+	gspWaitForPPF();
 	{
 		static volatile uint32_t h = 0x811C9DC5u;
 		const uint32_t *p = (const uint32_t*)pglState->colorBuffer;
