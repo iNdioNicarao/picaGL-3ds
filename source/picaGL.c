@@ -99,10 +99,10 @@ void pglSwapBuffers()
 		//  - RIGHT eye -> present as stereo pair (hasStereo=true).
 		// This restores a visible top screen even when the game renders only
 		// one eye, and shows a correct pair when both eyes are rendered.
-		gfxScreenSwapBuffers(GFX_TOP, pglState->display_side == GFX_RIGHT);
-		// Sync to VBlank so the present does not tear/strobe (the previous
-		// unsynced swap caused the flickering "darker" image). gfxSwapBuffers
-		// waits for VBlank and swaps both screens correctly.
+		// Use a SINGLE VBlank-synced gfxSwapBuffers() (NOT gfxScreenSwapBuffers
+		// + gfxSwapBuffers, which double-swaps and desyncs libctru's framebuffer
+		// counter -> blank screen). gfxSwapBuffers waits for VBlank and swaps
+		// both screens correctly.
 		gfxSwapBuffers();
 		return;
 	}
@@ -133,10 +133,6 @@ void pglSwapBuffers()
 		}
 	}
 
-	gfxScreenSwapBuffers(pglState->display, false);
-	// Sync to VBlank so the present does not tear/strobe (the previous
-	// unsynced swap caused the flickering "darker" image). gfxSwapBuffers
-	// waits for VBlank and swaps both screens correctly.
 	gfxSwapBuffers();
 }
 
