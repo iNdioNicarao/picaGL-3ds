@@ -72,6 +72,13 @@ void pglBindFramebuffer(void)
 
 void pglSwapBuffers()
 {
+	// Wait for VBlank BEFORE building/transferring the frame. Without this,
+	// the GX_DisplayTransfer into the LCD framebuffer can cross the VBlank
+	// boundary and the displayed scan shows a half-written (darker, torn)
+	// frame -> the "flashing/strobe" artifact. Waiting up front guarantees
+	// the whole transfer lands inside one refresh window.
+	gspWaitForVBlank();
+
 	glFlush();
 
 	uint32_t *output_framebuffer = (uint32_t*)gfxGetFramebuffer(pglState->display, pglState->display_side, NULL, NULL);
