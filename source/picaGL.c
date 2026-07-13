@@ -179,8 +179,9 @@ void pglSwapBuffers()
 		swap_count++;
 		FILE *sf = fopen("sdmc:/3ds/d1/lum_trace.txt", "a");
 		if (sf) {
-			fprintf(sf, "swap=%d cblum=%d fblum=%d fb=%p fmt=%d cbhash=%08X\n",
-				swap_count, cblum, fblum, (void*)output_framebuffer, (int)output_format, (unsigned)h);
+			fprintf(sf, "swap=%d cblum=%d fblum=%d fb=%p fmt=%d cbhash=%08X disp=%d side=%d stereo=%d\n",
+				swap_count, cblum, fblum, (void*)output_framebuffer, (int)output_format, (unsigned)h,
+				(int)pglState->display, (int)pglState->display_side, (int)pglState->stereo);
 			fclose(sf);
 		}
 	}
