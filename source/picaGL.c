@@ -114,16 +114,12 @@ void pglSwapBuffers()
 				fclose(sf);
 			}
 		}
-		// Present on EVERY swap so the top screen always updates:
-		//  - LEFT eye  -> present mono (hasStereo=false): top shows the scene.
-		//  - RIGHT eye -> present as stereo pair (hasStereo=true).
-		// This restores a visible top screen even when the game renders only
-		// one eye, and shows a correct pair when both eyes are rendered.
-		// Use a SINGLE VBlank-synced gfxSwapBuffers() (NOT gfxScreenSwapBuffers
-		// + gfxSwapBuffers, which double-swaps and desyncs libctru's framebuffer
-		// counter -> blank screen). gfxSwapBuffers waits for VBlank and swaps
-		// both screens correctly.
-		gfxSwapBuffers();
+		// Present the TOP screen only (the one we just rendered+transferred).
+		// Swap the correct screen with hasStereo matching the eye side, per
+		// upstream picaGL. Do NOT call gfxSwapBuffers() here: that flips BOTH
+		// screens, but we only transferred the TOP this call, so the bottom
+		// would be flipped to an unfilled buffer -> blank/strobe.
+		gfxScreenSwapBuffers(GFX_TOP, pglState->display_side == GFX_RIGHT);
 		return;
 	}
 
@@ -163,7 +159,7 @@ void pglSwapBuffers()
 		}
 	}
 
-	gfxSwapBuffers();
+	gfxScreenSwapBuffers(pglState->display, false);
 }
 
 void pglSelectScreen(unsigned display, unsigned side)
