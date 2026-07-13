@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <unistd.h>
 #include "internal.h"
 
 static aptHookCookie _hookCookie;
@@ -78,10 +77,6 @@ void pglSwapBuffers()
 	// fix the strobe. Removed. The single gfxSwapBuffers() below is the
 	// correct, VBlank-synced present.
 
-	// DIAGNOSTIC: solid-white toggle (see below). Read once; survives across
-	// the if/else blocks so the log can report it.
-	static int solid_mode = -1; // -1 = not yet checked
-
 	glFlush();
 
 	// Flush the CPU/GPU caches for the LCD framebuffer BEFORE transferring
@@ -125,20 +120,6 @@ void pglSwapBuffers()
 
 	if(pglState->display == GFX_TOP)
 	{
-		// DIAGNOSTIC TOGGLE: if sdmc:/3ds/d1/SOLID exists, overwrite the
-		// colorBuffer with solid white so the DISPLAYED result is guaranteed
-		// constant regardless of the 3D world. If the screen STILL strobes
-		// with SOLID present -> the bug is 100% in the present/transfer path
-		// (3D world exonerated). If SOLID is stable -> the 3D world's
-		// rendering corrupts the displayed result.
-		if (solid_mode == -1)
-			solid_mode = (access("sdmc:/3ds/d1/SOLID", F_OK) == 0) ? 1 : 0;
-		if (solid_mode) {
-			static const uint32_t w = 0xFFFFFFFFu;
-			uint32_t *cb = (uint32_t*)pglState->colorBuffer;
-			for (int i = 0; i < (240*400); i++) cb[i] = w;
-		}
-
 		GX_DisplayTransfer(
 			(u32*)pglState->colorBuffer, GX_BUFFER_DIM(240, 400),
 			output_framebuffer, GX_BUFFER_DIM(240, 400),
@@ -166,8 +147,8 @@ void pglSwapBuffers()
 		swap_count++;
 		FILE *sf = fopen("sdmc:/3ds/d1/pgl_trace.txt", "a");
 		if (sf) {
-			fprintf(sf, "PGL swap #%d display=%d side=%d fb=%p hasStereo=0 fmt=%d cbhash=%08X solid=%d\n",
-				swap_count, (int)pglState->display, (int)pglState->display_side, (void*)output_framebuffer, (int)output_format, (unsigned)h, solid_mode);
+			fprintf(sf, "PGL swap #%d display=%d side=%d fb=%p hasStereo=0 fmt=%d cbhash=%08X\n",
+				swap_count, (int)pglState->display, (int)pglState->display_side, (void*)output_framebuffer, (int)output_format, (unsigned)h);
 			fclose(sf);
 		}
 	}
