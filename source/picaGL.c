@@ -108,28 +108,33 @@ void pglSwapBuffers()
 			fb, GX_BUFFER_DIM(240, 400),
 			GX_TRANSFER_OUT_FORMAT(output_format));
 		_queueRun(false);
-		// Wait for the GX display-transfer to FINISH before flipping.
-		// _queueRun(false) only waits for the GPU command queue (rendering);
-		// the GX_DisplayTransfer goes to the GSP transfer unit, a different
-		// queue. Without this wait, gfxSwapBuffers() flips the framebuffer
-		// while the transfer is still writing -> the top screen shows a mix
-		// of new + stale/partial lines = the strobe/tearing.
+		// Wait for the GX display-transfer to FINISH before the game
+		// overwrites colorBuffer with the next eye (and before we flip).
 		gspWaitForPPF();
+		// v99h: STROBE + STUCK-BANNER ROOT CAUSE. Previously this branch
+		// called gfxScreenSwapBuffers(GFX_TOP, ...) after EACH eye -> TWO
+		// swaps per frame. The TOP screen is double-buffered, so two swaps
+		// toggle the back-buffer index TWICE per frame: the game keeps
+		// rendering into one bank while the hardware keeps DISPLAYING the
+		// other (the stale banner bank) -> banner stuck on screen + strobe
+		// from partial/alternating flips. Correct 3DS stereo discipline:
+		// fill the LEFT back buffer (no swap), fill the RIGHT back buffer,
+		// then swap ONCE with hasStereo=true to present both eyes together.
+		// So: only swap on the RIGHT eye (the second present of the pair).
 		{
+			unsigned long cbsum=0; unsigned n=0;
+			const uint32_t *p=(const uint32_t*)pglState->colorBuffer;
+			for (int i=0;i<(240*400);i+=64){uint32_t c=p[i];cbsum+=(c&0xFF)+((c>>8)&0xFF)+((c>>16)&0xFF);n+=3;}
 			FILE *sf = fopen("sdmc:/3ds/d1/pgl_trace.txt", "a");
 			if (sf) {
-				fprintf(sf, "PGL swap stereo side=%d fb=%p hasStereo=%d fmt=%d\n",
-					(int)pglState->display_side, (void*)fb,
-					(pglState->display_side == GFX_RIGHT) ? 1 : 0, (int)output_format);
+				fprintf(sf, "STEREO side=%d fb=%p cblum=%lu swap=%d\n",
+					(int)pglState->display_side, (void*)fb, cbsum/(n?n:1),
+					(pglState->display_side == GFX_RIGHT) ? 1 : 0);
 				fclose(sf);
 			}
 		}
-		// Present the TOP screen only (the one we just rendered+transferred).
-		// Swap the correct screen with hasStereo matching the eye side, per
-		// upstream picaGL. Do NOT call gfxSwapBuffers() here: that flips BOTH
-		// screens, but we only transferred the TOP this call, so the bottom
-		// would be flipped to an unfilled buffer -> blank/strobe.
-		gfxScreenSwapBuffers(GFX_TOP, pglState->display_side == GFX_RIGHT);
+		if (pglState->display_side == GFX_RIGHT)
+			gfxScreenSwapBuffers(GFX_TOP, true);
 		return;
 	}
 
