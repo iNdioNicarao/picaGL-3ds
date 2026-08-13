@@ -82,6 +82,49 @@ void pglBindFramebuffer(void)
 	_picaAttribBuffersLocation((void*)__ctru_linear_heap);
 }
 
+void pglTextureReset(void)
+{
+	/* Force a clean re-bind of every texture on the next draw. After a
+	 * system applet / menu has uploaded its own textures (e.g. a menu PCX
+	 * background) picaGL's textureBound pointer can point at the wrong
+	 * texture, so wall textures render black. Clearing textureBound +
+	 * flagging the change makes the next draw re-establish the textures. */
+	if (!pglState)
+		return;
+
+	pglState->textureBound[0] = NULL;
+	pglState->textureBound[1] = NULL;
+	pglState->textureChanged = GL_TRUE;
+	pglState->changes |= STATE_TEXTURE_CHANGE;
+}
+
+void pglReacquire(void)
+{
+	/* Recovery after a system applet (swkbd, Home Menu, etc.) takes over the
+	 * GPU and returns: picaGL's cached GX queue, render buffers, texture-env
+	 * and shader state are stale, so the next GPU draw would data-abort.
+	 * Replays the exact re-init that APTHOOK_ONRESTORE performs, without
+	 * touching the power-off flag. */
+	if (!pglState)
+		return;
+
+	GX_BindQueue(&pglState->gxQueue);
+	gxCmdQueueRun(&pglState->gxQueue);
+
+	_picaRenderBuffer(pglState->colorBuffer, pglState->depthBuffer);
+	_picaAttribBuffersLocation((void*)__ctru_linear_heap);
+
+	for (int i = 1; i < 6; i++)
+		_picaTextureEnvSet(i, &pglState->texenv[PGL_TEXENV_DUMMY]);
+
+	shaderProgramUse(&pglState->basicShader);
+	pglState->changes |= 0xFFFFFFFF;
+
+	/* The applet/menu also disturbed the texture bindings (walls render
+	 * black afterwards), so re-bind every texture on the next draw. */
+	pglTextureReset();
+}
+
 void pglSwapBuffers()
 {
 	// NOTE: gspWaitForVBlank() was added here in v89 but it hung power-off

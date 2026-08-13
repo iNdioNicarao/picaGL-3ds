@@ -34,6 +34,24 @@ void pglSetStereo(bool enable);
 // this at the start of each frame restores a live render target.
 void pglBindFramebuffer(void);
 
+// Re-acquire the GPU after a system applet (swkbd, Home Menu, etc.) has taken
+// over and returned. picaGL's cached GX queue / render buffers / texture-env /
+// shader state are stale, so without this the next GPU write data-aborts.
+// Replays the APTHOOK_ONRESTORE re-init. Safe to call even if nothing was
+// taken over.
+void pglReacquire(void);
+// After a system applet / menu has uploaded its own textures, picaGL's bound
+// texture pointer and GPU texture objects can be left pointing at the wrong
+// (or freed) texture, so wall textures render black. Force a clean re-bind of
+// every texture on the next draw (clears textureBound + flags the change).
+// Call this after any menu that renders a background bitmap, or after swkbd.
+void pglTextureReset(void);
+// Returns true once the system is powering off / suspending (set in
+// APTHOOK_ONSUSPEND and by pglSetPoweredOff). Consumers that touch the GPU
+// directly (e.g. the bottom-screen flush) must bail when this is true to
+// avoid a Data Abort on the GPU/LCD register space during teardown.
+bool pglIsPoweredOff(void);
+
 #ifdef __cplusplus
 }
 #endif

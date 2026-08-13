@@ -12,6 +12,11 @@ void pglSetPoweredOff(void)
 	pgl_powered_off = true;
 }
 
+bool pglIsPoweredOff(void)
+{
+	return pgl_powered_off;
+}
+
 void _queueWaitAndClear()
 {
 	if (pgl_powered_off)
