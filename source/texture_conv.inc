@@ -38,6 +38,17 @@ uint32_t _readA8(const void* data)
 	return (l | (l << 8) | (l << 16) | (a << 24));
 }
 
+void _writeRGBA8(void *data, uint32_t color)
+{
+	uint8_t *dst = (uint8_t*)data;
+	uint8_t *clr = (uint8_t*)&color;
+
+	dst[0] = clr[3];
+	dst[1] = clr[2];
+	dst[2] = clr[1];
+	dst[3] = clr[0];
+}
+
 void _writeRGBA4(void *data, uint32_t color)
 {
 	uint16_t *dst = (uint16_t*)data;

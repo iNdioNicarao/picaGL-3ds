@@ -35,8 +35,8 @@ static GPU_TEXCOLOR _determineHardwareFormat(GLenum format)
 	switch(format)
 	{	
 		case 4:
-		case GL_RGBA8: //return GPU_RGBA8;
-		case GL_RGBA:
+		case GL_RGBA8:
+		case GL_RGBA:  return GPU_RGBA8;
 		case GL_RGBA4: return GPU_RGBA4;
 
 		case 3:
@@ -47,7 +47,7 @@ static GPU_TEXCOLOR _determineHardwareFormat(GLenum format)
 		case GL_ALPHA:
 		case GL_LUMINANCE_ALPHA: return GPU_LA4;
 
-		default: return GPU_RGBA4;
+		default: return GPU_RGBA8;
 	}
 }
 
@@ -82,6 +82,7 @@ static inline readFunc _determineReadFunction(GLenum format, GLenum type, uint8_
 static inline writeFunc _determineWriteFunction(GPU_TEXCOLOR format)
 {
 	switch (format) {
+		case GPU_RGBA8:  return _writeRGBA8;
 		case GPU_RGBA4:  return _writeRGBA4;
 		case GPU_RGB565: return _writeRGB565;
 		case GPU_LA8:    return _writeLA8;
@@ -108,12 +109,14 @@ static inline uint32_t _picaConvertFilter(uint32_t param)
 	switch(param)
 	{	
 		case GL_LINEAR_MIPMAP_LINEAR:
+		case GL_LINEAR_MIPMAP_NEAREST:
 		case GL_LINEAR: return GPU_LINEAR;
 		
 		case GL_NEAREST_MIPMAP_NEAREST:
+		case GL_NEAREST_MIPMAP_LINEAR:
 		case GL_NEAREST: return GPU_NEAREST;
 
-		default: return GL_LINEAR;
+		default: return GPU_LINEAR;
 	}
 }
 
@@ -304,10 +307,10 @@ void glTexParameterf(GLenum target, GLenum pname, GLfloat param)
 	switch(pname)
 	{
 		case GL_TEXTURE_MAG_FILTER:
-			tex_param = (tex_param & 0xFFFE) | GPU_TEXTURE_MAG_FILTER(_picaConvertFilter(param));
+			tex_param = (tex_param & ~GPU_TEXTURE_MAG_FILTER(1)) | GPU_TEXTURE_MAG_FILTER(_picaConvertFilter(param));
 			break;
 		case GL_TEXTURE_MIN_FILTER:
-			tex_param = (tex_param & 0xFFFD) | GPU_TEXTURE_MIN_FILTER(_picaConvertFilter(param));
+			tex_param = (tex_param & ~GPU_TEXTURE_MIN_FILTER(1)) | GPU_TEXTURE_MIN_FILTER(_picaConvertFilter(param));
 			break;
 		case GL_TEXTURE_WRAP_T:
 			tex_param = (tex_param & 0xFCFF) | GPU_TEXTURE_WRAP_T(_picaConvertWrap(param));
@@ -340,7 +343,7 @@ void glBindTexture(GLenum target, GLuint texture)
 	{
 		texObject = malloc(sizeof(TextureObject));
 
-		texObject->param  = GPU_TEXTURE_MAG_FILTER(GPU_LINEAR) | GPU_TEXTURE_WRAP_S(GPU_REPEAT) | GPU_TEXTURE_WRAP_T(GPU_REPEAT);
+		texObject->param  = GPU_TEXTURE_MAG_FILTER(GPU_LINEAR) | GPU_TEXTURE_MIN_FILTER(GPU_LINEAR) | GPU_TEXTURE_WRAP_S(GPU_REPEAT) | GPU_TEXTURE_WRAP_T(GPU_REPEAT);
 		texObject->width  = 0;
 		texObject->height = 0;
 
@@ -368,7 +371,7 @@ void glGenTextures(GLsizei n, GLuint *textures)
 		id = hashTableUniqueKey(&pglState->textureTable);
 		texObject = malloc(sizeof(TextureObject));
 
-		texObject->param  = GPU_TEXTURE_MAG_FILTER(GPU_LINEAR) | GPU_TEXTURE_WRAP_S(GPU_REPEAT) | GPU_TEXTURE_WRAP_T(GPU_REPEAT);
+		texObject->param  = GPU_TEXTURE_MAG_FILTER(GPU_LINEAR) | GPU_TEXTURE_MIN_FILTER(GPU_LINEAR) | GPU_TEXTURE_WRAP_S(GPU_REPEAT) | GPU_TEXTURE_WRAP_T(GPU_REPEAT);
 		texObject->width  = 0;
 		texObject->height = 0;
 
