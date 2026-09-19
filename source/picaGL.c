@@ -164,18 +164,6 @@ void pglSwapBuffers()
 		// fill the LEFT back buffer (no swap), fill the RIGHT back buffer,
 		// then swap ONCE with hasStereo=true to present both eyes together.
 		// So: only swap on the RIGHT eye (the second present of the pair).
-		{
-			unsigned long cbsum=0; unsigned n=0;
-			const uint32_t *p=(const uint32_t*)pglState->colorBuffer;
-			for (int i=0;i<(240*400);i+=64){uint32_t c=p[i];cbsum+=(c&0xFF)+((c>>8)&0xFF)+((c>>16)&0xFF);n+=3;}
-			FILE *sf = fopen("sdmc:/3ds/d1/pgl_trace.txt", "a");
-			if (sf) {
-				fprintf(sf, "STEREO side=%d fb=%p cblum=%lu swap=%d\n",
-					(int)pglState->display_side, (void*)fb, cbsum/(n?n:1),
-					(pglState->display_side == GFX_RIGHT) ? 1 : 0);
-				fclose(sf);
-			}
-		}
 		if (pglState->display_side == GFX_RIGHT)
 			gfxScreenSwapBuffers(GFX_TOP, true);
 		return;
@@ -200,39 +188,6 @@ void pglSwapBuffers()
 	// Wait for the GX display-transfer to FINISH before flipping (see note
 	// above the stereo branch). This is the primary strobe fix for mono.
 	gspWaitForPPF();
-	{
-		static volatile uint32_t h = 0x811C9DC5u;
-		const uint32_t *p = (const uint32_t*)pglState->colorBuffer;
-		for (int i = 0; i < (240*400); i++) {
-			h ^= p[i];
-			h *= 0x01000193u;
-		}
-		// DIAGNOSTIC (camera-independent): sample mean luminance of the
-		// rendered colorBuffer AND the transferred LCD buffer. This tells us
-		// whether any brightness pulse originates in the rendered content
-		// (colorBuffer) or in the present/transfer (output_framebuffer), and
-		// is immune to phone-camera capture artifacts.
-		unsigned long cbsum=0, fbsum=0, n=0;
-		const uint32_t *fb = (const uint32_t*)output_framebuffer;
-		for (int i = 0; i < (240*400); i += 64) {
-			uint32_t c = p[i];
-			cbsum += (c&0xFF) + ((c>>8)&0xFF) + ((c>>16)&0xFF);
-			uint32_t o = fb[i];
-			fbsum += (o&0xFF) + ((o>>8)&0xFF) + ((o>>16)&0xFF);
-			n += 3;
-		}
-		int cblum = (int)(cbsum/n);
-		int fblum = (int)(fbsum/n);
-		static int swap_count = 0;
-		swap_count++;
-		FILE *sf = fopen("sdmc:/3ds/d1/lum_trace.txt", "a");
-		if (sf) {
-			fprintf(sf, "swap=%d cblum=%d fblum=%d fb=%p fmt=%d cbhash=%08X disp=%d side=%d stereo=%d\n",
-				swap_count, cblum, fblum, (void*)output_framebuffer, (int)output_format, (unsigned)h,
-				(int)pglState->display, (int)pglState->display_side, (int)pglState->stereo);
-			fclose(sf);
-		}
-	}
 
 	gfxScreenSwapBuffers(pglState->display, false);
 }
@@ -241,4 +196,24 @@ void pglSelectScreen(unsigned display, unsigned side)
 {
 	pglState->display = display;
 	pglState->display_side = side;
+}
+
+void pglCaptureRearView(uint16_t *dst_linear_rgb565)
+{
+	if (!dst_linear_rgb565 || !pglState || !pglState->colorBuffer)
+		return;
+
+	glFlush();
+	gfxFlushBuffers();
+
+	uint8_t output_format = gfxGetScreenFormat(GFX_BOTTOM);
+
+	/* Capture centered 320 columns from 400-wide buffer (columns 40..359) */
+	GX_DisplayTransfer(
+		(u32*)pglState->colorBuffer + (240*40), GX_BUFFER_DIM(240, 320),
+		(u32*)dst_linear_rgb565, GX_BUFFER_DIM(240, 320),
+		GX_TRANSFER_OUT_FORMAT(output_format));
+
+	_queueRun(false);
+	gspWaitForPPF();
 }

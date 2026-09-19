@@ -2,6 +2,7 @@
 #define __PICAGL_H__
 
 #include <GL/gl.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -51,6 +52,9 @@ void pglTextureReset(void);
 // directly (e.g. the bottom-screen flush) must bail when this is true to
 // avoid a Data Abort on the GPU/LCD register space during teardown.
 bool pglIsPoweredOff(void);
+// Transfers the current picaGL colorBuffer (bottom-screen 240x320 area)
+// to a linear RGB565 buffer via hardware GX_DisplayTransfer.
+void pglCaptureRearView(uint16_t *dst_linear_rgb565);
 
 #ifdef __cplusplus
 }
